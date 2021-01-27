@@ -160,6 +160,10 @@ func mount(c *cli.Context) error {
 		if err != nil {
 			logger.Fatalf("Failed to make daemon: %s", err)
 		}
+		stderrFile := c.String("stderr-logfile")
+		if err = redirectStderr(stderrFile); err != nil {
+			logger.Fatalf("Failed to redirect stderr to file %s: %v", stderrFile, err)
+		}
 	}
 
 	store := chunk.NewCachedStore(blob, chunkConf)
@@ -226,6 +230,11 @@ func mountFlags() *cli.Command {
 			&cli.BoolFlag{
 				Name:  "no-syslog",
 				Usage: "disable syslog",
+			},
+			&cli.StringFlag{
+				Name:  "stderr-logfile",
+				Value: "/var/log/juicefs/stderr",
+				Usage: "redirect stderr to this file, only effective in daemon mode",
 			},
 
 			&cli.StringFlag{
@@ -313,4 +322,23 @@ func mountFlags() *cli.Command {
 			},
 		},
 	}
+}
+
+func redirectStderr(logpath string) error {
+	directory := filepath.Dir(logpath)
+	if _, err := os.Stat(directory); err != nil {
+		if os.IsNotExist(err) {
+			if err1 := os.MkdirAll(directory, 0o755); err1 != nil {
+				return fmt.Errorf("failed to mkdir %s: %v", directory, err1)
+			}
+		} else {
+			return err
+		}
+	}
+	f, err := os.OpenFile(logpath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0o755)
+	if err != nil {
+		return err
+	}
+	err = syscall.Dup2(int(f.Fd()), int(os.Stderr.Fd()))
+	return err
 }

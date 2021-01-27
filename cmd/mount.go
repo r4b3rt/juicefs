@@ -335,7 +335,7 @@ func redirectStderr(logpath string) error {
 			return err
 		}
 	}
-	f, err := os.OpenFile(logpath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0o755)
+	f, err := os.OpenFile(logpath, os.O_APPEND|os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0o755)
 	if err != nil {
 		return err
 	}
